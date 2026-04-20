@@ -140,6 +140,57 @@
 
       @media (max-width: 900px){
         .main{ grid-template-columns: 1fr; }
+        .side{ order: -1; }
+        .avatar{ justify-content: center; }
+        .topbar .badge:nth-child(2),
+        .topbar .badge:nth-child(3),
+        .topbar .badge:nth-child(4){ display:none; }
+        .side .panel:last-child{ display:none; }
+      }
+
+      @media (max-width: 900px){
+        body.break-fullscreen{
+          overflow:hidden;
+        }
+        body.break-fullscreen .wrap{
+          padding:0;
+        }
+        body.break-fullscreen .game{
+          width:100%;
+          max-width:none;
+          gap:0;
+        }
+        body.break-fullscreen .topbar,
+        body.break-fullscreen .side,
+        body.break-fullscreen .title,
+        body.break-fullscreen #mathUI{
+          display:none !important;
+        }
+        body.break-fullscreen .main{
+          grid-template-columns: 1fr;
+          gap:0;
+        }
+        body.break-fullscreen .main > .panel{
+          border:none;
+          border-radius:0;
+          box-shadow:none;
+          background: transparent;
+          padding:0;
+        }
+        body.break-fullscreen .quest{
+          gap:0;
+        }
+        body.break-fullscreen #breakBox.active{
+          display:grid;
+          height:100dvh;
+          border:none;
+          border-radius:0;
+          padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+        }
+        body.break-fullscreen .runnerCanvas{
+          height: calc(100dvh - 200px);
+          min-height: 340px;
+        }
       }
 
       .title{
@@ -333,6 +384,13 @@
         box-shadow: 0 10px 0 rgba(0,0,0,.22);
         position:relative;
         flex:0 0 auto;
+      }
+      .face.idle{
+        animation: faceIdle 2.2s ease-in-out infinite;
+      }
+      @keyframes faceIdle{
+        0%,100%{ transform: translateY(0); }
+        50%{ transform: translateY(-4px); }
       }
       .eye{
         position:absolute;
@@ -990,7 +1048,7 @@
           <div class="side">
             <div class="panel">
               <div class="avatar">
-                <div class="face" id="face" aria-hidden="true">
+                <div class="face idle" id="face" aria-hidden="true">
                   <div class="eye left"></div>
                   <div class="eye right"></div>
                   <div class="mouth"></div>
@@ -1464,11 +1522,17 @@
         function showMathUI() {
           els.mathUI.style.display = "";
           els.breakBox.classList.remove("active");
+          document.body.classList.remove("break-fullscreen");
         }
 
         function showBreakUI() {
           els.mathUI.style.display = "none";
           els.breakBox.classList.add("active");
+          if (window.matchMedia("(max-width: 900px)").matches) {
+            document.body.classList.add("break-fullscreen");
+          } else {
+            document.body.classList.remove("break-fullscreen");
+          }
         }
 
         function runnerReset() {
@@ -1480,7 +1544,7 @@
           r.coins = 0;
           r.obstacles = [];
           r.pickups = [];
-          r.nextObsIn = 0.8;
+          r.nextObsIn = 1.25;
           r.nextCoinIn = 0.6;
           r.invuln = 0;
           r.magnet = 0;
@@ -1525,7 +1589,7 @@
           const r = state.runner;
           r.t += dt;
           const groundY = h - 56;
-          const speed = 320 + Math.min(260, r.t * 10);
+          const speed = 215 + Math.min(160, r.t * 6);
 
           const p = r.player;
           const gravity = 1850;
@@ -1543,7 +1607,7 @@
           r.nextStarIn -= dt;
           if (r.nextObsIn <= 0) {
             runnerSpawnObstacle();
-            r.nextObsIn = randInt(60, 130) / 100;
+            r.nextObsIn = randInt(95, 180) / 100;
           }
           if (r.nextCoinIn <= 0) {
             runnerSpawnCoin();
@@ -1654,11 +1718,20 @@
           const bob = Math.sin(r.t * 4) * 2;
           ctx.save();
           if (r.invuln > 0 && Math.floor(r.t * 18) % 2 === 0) ctx.globalAlpha = 0.35;
+          const pyb = py + bob;
           ctx.fillStyle = r.invuln > 0 ? "rgba(46,242,179,0.92)" : "rgba(255,211,92,0.95)";
-          ctx.fillRect(px, py + bob, p.w, p.h);
+          ctx.fillRect(px, pyb, p.w, p.h);
+          // Hair + bow to make the runner clearly "girl" style.
+          ctx.fillStyle = "rgba(110,72,40,0.9)";
+          ctx.fillRect(px + 2, pyb + 2, p.w - 4, 10);
+          ctx.fillRect(px + 1, pyb + 10, 6, 18);
+          ctx.fillRect(px + p.w - 7, pyb + 10, 6, 18);
+          ctx.fillStyle = "rgba(255,122,162,0.96)";
+          ctx.fillRect(px + 9, pyb - 6, 6, 6);
+          ctx.fillRect(px + 19, pyb - 6, 6, 6);
           ctx.fillStyle = "rgba(0,0,0,0.32)";
-          ctx.fillRect(px + 6, py + 12 + bob, 7, 7);
-          ctx.fillRect(px + p.w - 13, py + 12 + bob, 7, 7);
+          ctx.fillRect(px + 6, pyb + 14, 7, 7);
+          ctx.fillRect(px + p.w - 13, pyb + 14, 7, 7);
           ctx.restore();
 
           ctx.fillStyle = "rgba(169,139,255,0.9)";
@@ -1953,6 +2026,16 @@
             if (e.key.toLowerCase() === "n") {
               e.preventDefault();
               els.nextBtn.click();
+            }
+          });
+
+          window.addEventListener("resize", () => {
+            if (PHASES[state.phaseIndex]?.type === "break") {
+              if (window.matchMedia("(max-width: 900px)").matches) {
+                document.body.classList.add("break-fullscreen");
+              } else {
+                document.body.classList.remove("break-fullscreen");
+              }
             }
           });
         }
